@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#030305">
+<title>Роза для тебя</title>
+<style>
+    html, body { height: 100%; margin: 0; overscroll-behavior: none; }
+    body { position: fixed; inset: 0; background: #030305; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+    canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+    #bar { position: fixed; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom, 0px) + 34px); display: flex; gap: 12px; justify-content: center; z-index: 3; transition: opacity .6s; }
+    body.calm #bar { opacity: 0; pointer-events: none; }
+    body.gift #mk, body.gift #rec { display: none; }
+    button { width: 52px; height: 52px; border-radius: 50%; font-size: 1.3rem; line-height: 1; color: #fde; cursor: pointer; padding: 0; background: rgba(28,16,24,.55); border: 1px solid rgba(255,255,255,.16); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: transform .15s, border-color .25s; }
+    button:active { transform: scale(.92); }
+    button:focus-visible { outline: 2px solid #f9a; outline-offset: 3px; }
+    #toast { position: fixed; left: 0; right: 0; top: calc(env(safe-area-inset-top, 0px) + 56px); text-align: center; font: 600 .82rem system-ui, sans-serif; color: rgba(255,225,235,.8); letter-spacing: .03em; pointer-events: none; z-index: 8; }
+    #open { position: fixed; inset: 0; z-index: 9; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: radial-gradient(ellipse at 50% 45%, #1a0810 0%, #030305 70%); color: #ffdfe8; text-align: center; padding: 0 28px; transition: opacity 1.2s; cursor: pointer; }
+    #open.on { display: flex; } #open.out { opacity: 0; pointer-events: none; }
+    #open .rose { font-size: 4rem; animation: beat 1.3s ease-in-out infinite; filter: drop-shadow(0 0 22px rgba(255,60,100,.7)); }
+    #open .for { font-size: clamp(1.4rem, 6vw, 2.2rem); font-weight: 600; letter-spacing: .04em; }
+    #open .tap { font-size: .9rem; letter-spacing: .18em; text-transform: uppercase; color: rgba(255,200,215,.6); animation: blink 2s ease-in-out infinite; }
+    @keyframes beat { 0%, 100% { transform: scale(1); } 15% { transform: scale(1.16); } 30% { transform: scale(1); } 45% { transform: scale(1.1); } }
+    @keyframes blink { 50% { opacity: .35; } }
+    #make { position: fixed; inset: 0; z-index: 7; display: none; align-items: center; justify-content: center; background: rgba(3,3,5,.7); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); padding: 16px; box-sizing: border-box; touch-action: auto; overflow-y: auto; }
+    #make.on { display: flex; }
+    .card { width: min(100%, 440px); box-sizing: border-box; padding: 20px; border-radius: 24px; background: rgba(26,14,22,.92); border: 1px solid rgba(255,255,255,.14); color: #ffe9ef; display: flex; flex-direction: column; gap: 12px; user-select: text; -webkit-user-select: text; }
+    .card h2 { margin: 0 0 2px; font-size: 1.2rem; font-weight: 600; }
+    .card label { display: flex; flex-direction: column; gap: 5px; font-size: .78rem; color: rgba(255,220,230,.65); letter-spacing: .03em; }
+    .card input { font: 500 16px system-ui, sans-serif; color: #fff; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.16); border-radius: 14px; padding: 11px 14px; outline: none; user-select: text; -webkit-user-select: text; }
+    .card input:focus { border-color: #ff8fa8; }
+    .card .row { display: flex; gap: 10px; }
+    .card .row button, .card .close { width: auto; height: 46px; border-radius: 999px; font-size: .92rem; font-weight: 600; padding: 0 18px; flex: 1; color: #fff; background: rgba(255,255,255,.1); }
+    .card #f-send { background: linear-gradient(135deg, #ff4d7a, #c2185b); border-color: transparent; }
+    .card .close { background: none; flex: none; color: rgba(255,220,230,.6); }
+    .hint { font-size: .74rem; color: rgba(255,220,230,.5); line-height: 1.5; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="toast"></div>
+<div id="bar">
+    <button id="again" aria-label="Заново">↻</button>
+    <button id="snd" aria-label="Музыка">🔇</button>
+    <button id="mk" aria-label="Создать подарок">🎁</button>
+    <button id="rec" aria-label="Записать видео">🎥</button>
+</div>
+<div id="open"><div class="rose">🌹</div><div class="for" id="open-for"></div><div class="tap">нажми, чтобы открыть</div></div>
+<div id="make">
+    <div class="card">
+        <h2>🎁 Подарок</h2>
+        <label>Для кого<input id="f-to" maxlength="24" placeholder="Её имя"></label>
+        <label>От кого<input id="f-from" maxlength="24" placeholder="Твоё имя"></label>
+        <label>Слова для неё<input id="f-msg" maxlength="90" placeholder="Эта роза растёт только для тебя"></label>
+        <label>Мы вместе с (по желанию)<input id="f-since" type="date"></label>
+        <label>Слова на лепестках (по желанию)<input id="f-text" maxlength="30" placeholder="Я ТЕБЯ ЛЮБЛЮ"></label>
+        <div class="row"><button id="f-prev">Посмотреть</button><button id="f-send">Отправить ей</button></div>
+        <input id="f-link" readonly aria-label="Ссылка">
+        <div class="hint">Она откроет ссылку, нажмёт на экран, и роза вырастет под музыку с её именем и твоими словами. Ссылка работает на телефоне и компьютере.</div>
+        <button class="close" id="f-close">Закрыть</button>
+    </div>
+</div>
+
+<script>
+(() => {
+    const $ = (id) => document.getElementById(id);
+    const cv = $('c'), ctx = cv.getContext('2d'), toast = $('toast');
+    const q = new URLSearchParams(window.location.search);
+    const cfg = { to: (q.get('to') || '').slice(0, 24), from: (q.get('from') || '').slice(0, 24), msg: (q.get('msg') || '').slice(0, 90), since: q.get('since') || '', text: (q.get('text') || '').slice(0, 30) };
+    const FIXT = q.has('t') ? parseFloat(q.get('t')) : null;   // ?t=12 замораживает кадр (для проверки)
+    const gift = !!(cfg.to || cfg.msg) && FIXT === null;
+    const clamp = (v, a, b) => Math.min(b, Math.max(a, v)), smooth = (x) => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); }, rnd = (a, b) => a + Math.random() * (b - a);
+    const MONO = 'ui-monospace, "Cascadia Mono", Consolas, "DejaVu Sans Mono", Menlo, monospace';
+    const LOOP = 34, BLOOM0 = 5.5;
+    document.body.classList.toggle('gift', !!(cfg.to || cfg.msg));
+
+    let W, H, dpr, cols, rows, cellW, cellH, fontPx, scale, SC, ox, oy, zbuf, mat, bri, STEM_H = 1.52, PIV = 1, Q = 1;
+    const tc = document.createElement('canvas'), tcx = tc.getContext('2d'), bl = [0, 1, 2, 3].map(() => document.createElement('canvas'));
+    function resize() {
+        dpr = Math.min(window.devicePixelRatio || 1, 2); W = window.innerWidth; H = window.innerHeight;
+        for (const c of [cv, tc]) { c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); }
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0); tcx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        bl.forEach((c, k) => { c.width = Math.max(2, Math.ceil(tc.width / Math.pow(2, k + 1))); c.height = Math.max(2, Math.ceil(tc.height / Math.pow(2, k + 1))); });
+        cols = W < 600 ? 80 : clamp(Math.round(W / 6.2), 120, 200); cellW = W / cols; fontPx = cellW / .6; cellH = fontPx * 1.12; rows = Math.floor(H / cellH);
+        STEM_H = H / W > 1.4 ? Math.min(2.1, H / W * .9) : 1.52; PIV = STEM_H * .66;
+        scale = Math.min(H * .78 / (STEM_H + .8), W * .95 / 1.35); ox = W / 2; oy = H * .93;
+        zbuf = new Float32Array(cols * rows); mat = new Uint8Array(cols * rows); bri = new Float32Array(cols * rows);
+        stars = Array.from({ length: Math.round(cols * rows / 260) }, () => ({ x: (Math.random() * cols) | 0, y: (Math.random() * rows) | 0, ph: Math.random() * 6.28, sp: .5 + Math.random() * 1.3 }));
+    }
+    let stars = [];
+
+    const bloomAt = (t) => { const u = clamp((t - BLOOM0) / 9, 0, 1); return u * (2 - u) * .55 + u * u * (3 - 2 * u) * .45; };
+    const swayAt = (t) => .2 * Math.sin(Math.max(t - 7, 0) * .35) * smooth((t - 7) / 4);
+
+    let cS, sS, cY, sY, cP, sP, K = [0, 0, 0], Rm = [0, 0, 0];
+    function setCamera(t) {
+        const sw = swayAt(t), yaw = .14 * Math.sin(t * .4), pit = .5;
+        cS = Math.cos(sw); sS = Math.sin(sw); cY = Math.cos(yaw); sY = Math.sin(yaw); cP = Math.cos(pit); sP = Math.sin(pit);
+        const k = [-.35, .85, .65], kn = Math.hypot(...k); K = k.map(v => v / kn);
+        const r = [Math.cos(t * .8), .4, Math.sin(t * .8)], rn = Math.hypot(...r); Rm = r.map(v => v / rn);
+    }
+    function proj(x, y, z, o) {   
+        const x1 = cS * x - sS * y, y1 = sS * x + cS * y, yc = y1 - PIV, xa = cY * x1 + sY * z, za = -sY * x1 + cY * z, yb = cP * yc - sP * za;
+        o[0] = (ox + xa * SC) / cellW; o[1] = (oy - (yb + PIV) * SC) / cellH;
+    }
+    function splat(x, y, z, nx, ny, nz, m, ao) {
+        const x1 = cS * x - sS * y, y1 = sS * x + cS * y, yc = y1 - PIV;
+        const xa = cY * x1 + sY * z, za = -sY * x1 + cY * z, yb = cP * yc - sP * za, zb = sP * yc + cP * za;
+        const ix = ((ox + xa * SC) / cellW) | 0, iy = ((oy - (yb + PIV) * SC) / cellH) | 0;
+        if (ix < 0 || ix >= cols || iy < 0 || iy >= rows) return;
+        const idx = iy * cols + ix; if (zb <= zbuf[idx]) return;
+        const n1x = cS * nx - sS * ny, n1y = sS * nx + cS * ny, na = cY * n1x + sY * nz, nza = -sY * n1x + cY * nz, nyb = cP * n1y - sP * nza;
+        let nzb = sP * n1y + cP * nza, nxb = na, nyc = nyb;
+        if (nzb < 0) { nxb = -nxb; nyc = -nyc; nzb = -nzb; }
+        const d1 = Math.max(0, nxb * K[0] + nyc * K[1] + nzb * K[2]), d2 = Math.max(0, nxb * Rm[0] + nyc * Rm[1] + nzb * Rm[2]);
+        zbuf[idx] = zb; mat[idx] = m; bri[idx] = (.12 + .95 * d1 + .6 * d2 * Math.pow(1 - nzb, 1.6)) * ao;
+    }
+
+    let RX = 0, RSn = 0, RCs = 0;
+    function rosePrep(th) {
+        const m = (((3.6 * th) % 6.283185) + 6.283185) % 6.283185, a = 1 - m / Math.PI;
+        RX = 1 - .5 * Math.pow(1.25 * a * a - .25, 2);
+        const phi = 1.5707963 * Math.exp(-th / 25.132741); RSn = Math.sin(phi); RCs = Math.cos(phi);
+    }
+    function rosePt(u, o, rs, zs) {
+        const y = 1.95653 * u * u * Math.pow(1.27689 * u - 1, 2) * RSn, r = RX * (u * RSn + y * RCs);
+        o[0] = r; o[1] = RX * (u * RCs - y * RSn) * zs; o[2] = r; 
+    }
+    const RA = new Float64Array(150), RB = new Float64Array(150), tmp3 = new Float64Array(3);
+    function drawRose(cx, cy, cz, k, bl, pulse) {
+        const th0 = -6.283185 * (.15 + .85 * smooth(bl * 1.05)), th1 = 47.1238898, rs = .5 + .5 * bl, zs = 1.3 - .3 * bl, R = k * pulse;
+        const circ = 6.283185 * R * SC / cellW, nTh = clamp(Math.round((th1 - th0) / 6.283185 * circ * 1.5 * Q), 140, 1000), nU = clamp(Math.round(R * 1.4 * SC / cellH * 2.2 * Q), 12, 44);
+        const dth = (th1 - th0) / nTh, row = (th, arr) => {
+            rosePrep(th); const s = Math.sin(th), c = Math.cos(th);
+            for (let j = 0; j <= nU + 1; j++) { rosePt(Math.min(1, j / nU), tmp3, rs, zs); arr[j * 3] = tmp3[0] * s * rs * R; arr[j * 3 + 1] = tmp3[1] * R; arr[j * 3 + 2] = tmp3[2] * c * rs * R; }
+        };
+        for (let i = 0; i <= nTh; i++) {
+            const th = th0 + dth * i; row(th, RA); row(th + dth, RB);
+            for (let j = 0; j <= nU; j++) {
+                const a = j * 3, b = (j + 1) * 3, ux = RA[b] - RA[a], uy = RA[b + 1] - RA[a + 1], uz = RA[b + 2] - RA[a + 2], vx = RB[a] - RA[a], vy = RB[a + 1] - RA[a + 1], vz = RB[a + 2] - RA[a + 2];
+                const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, nl = Math.hypot(nx, ny, nz); if (nl < 1e-12) continue;
+                const rr = Math.hypot(RA[a], RA[a + 2]) / (R * rs + 1e-6);
+                splat(cx + RA[a], cy + RA[a + 1], cz + RA[a + 2], nx / nl, ny / nl, nz / nl, 1, .34 + .66 * clamp(rr * 1.25, 0, 1));
+            }
+        }
+    }
+
+    function petalFn(p) {
+        return (s, t, o) => {
+            const w = p.Wd * Math.pow(Math.max(0, Math.sin(Math.PI * (.16 + .84 * t))), .7) * s, th = p.th + p.curl * t * t, along = p.L * t, cup = p.cup * w * w;
+            const rOff = p.r0 + Math.sin(th) * along - cup * Math.cos(th), yOff = Math.cos(th) * along + cup * Math.sin(th), cp = Math.cos(p.phi), sp = Math.sin(p.phi);
+            o[0] = p.cx + cp * rOff - sp * w; o[1] = p.cy + p.h0 + yOff; o[2] = p.cz + sp * rOff + cp * w;
+        };
+    }
+    const P0 = new Float64Array(3), P1 = new Float64Array(3), P2 = new Float64Array(3);
+    function surf(fn, ns, nt, m, ao0, ao1) {
+        const e = .012;
+        for (let a = 0; a <= ns; a++) {
+            const s = -1 + 2 * a / ns, ds = s < 1 ? e : -e;
+            for (let b = 0; b <= nt; b++) {
+                const t = b / nt, dt = t < 1 ? e : -e;
+                fn(s, t, P0); fn(s + ds, t, P1); fn(s, t + dt, P2);
+                const ux = P1[0] - P0[0], uy = P1[1] - P0[1], uz = P1[2] - P0[2], vx = P2[0] - P0[0], vy = P2[1] - P0[1], vz = P2[2] - P0[2];
+                const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, nl = Math.hypot(nx, ny, nz) || 1;
+                splat(P0[0], P0[1], P0[2], nx / nl, ny / nl, nz / nl, m, ao0 + (ao1 - ao0) * t);
+            }
+        }
+    }
+    function drawPlate(p, m, ao0, ao1) {
+        surf(petalFn(p), clamp(Math.round(p.Wd * 2 * SC / cellW * 2.4 * Q), 6, 40), clamp(Math.round(p.L * SC / cellW * 2.4 * Q), 6, 44), m, ao0, ao1);
+    }
+    function stemPt(u, o) { o[0] = .05 * Math.sin(3 * u); o[1] = STEM_H * u; o[2] = .04 * Math.sin(2.2 * u + .6); }
+
+    let sparkAcc = 0;
+    function renderRose(t, pulse) {
+        zbuf.fill(-1e9); mat.fill(0);
+        const g = 1 - Math.pow(1 - clamp(t / 3.4, 0, 1), 3), b = bloomAt(t), tmp = new Float64Array(3);
+        const nU = clamp(Math.round(STEM_H * g * SC / cellH * 2.6 * Q), 6, 320);
+        for (let a = 0; a <= nU; a++) {
+            const u = a / nU * g; stemPt(u, tmp); const r = .07 * (1 - .3 * u);
+            for (let k = 0; k < 12; k++) { const f = k / 12 * 6.2832, cf = Math.cos(f), sf = Math.sin(f); splat(tmp[0] + r * cf, tmp[1], tmp[2] + r * sf, cf, 0, sf, 2, .85); }
+        }
+        [[.36, Math.PI - .35, smooth((t - 2.4) / 2.4)], [.56, .35, smooth((t - 3.0) / 2.4)]].forEach(([u0, phi, lam]) => {
+            if (g < u0 + .02 || lam <= 0) return; stemPt(u0, tmp);
+            drawPlate({ cx: tmp[0], cy: tmp[1], cz: tmp[2], phi, r0: .02, h0: 0, L: .62, Wd: .28, th: .12 + 1.0 * lam, curl: .95 * lam, cup: .5 }, 2, .55, 1);
+        });
+        const sb = smooth((t - 3.0) / 2.6) * (.55 + .45 * b);
+        if (sb > .02 && g > .9) {
+            stemPt(g, tmp); const cx = tmp[0], cy = tmp[1] + .02, cz = tmp[2];
+            for (let k = 0; k < 5; k++) drawPlate({ cx, cy, cz, phi: k * 1.2566 + .3, r0: .02, h0: -.02, L: .26 * sb, Wd: .085 * sb, th: 2.35 + .3 * b, curl: .25, cup: .4 }, 2, .6, 1);
+            drawRose(cx, cy + .02, cz, .46 * sb + .04, b, pulse);
+        }
+    }
+
+    const BANDS = [['.', ',', '`', "'"], ['-', '~', ':', ';', '/', '\\', '|', '(', ')'], ['r', 'v', 'x', 'z', 'j', 't', 'f', 'c', 'l', 'i'], ['n', 'u', 'a', 'o', 'e', 's', 'w', 'm', 'k'], ['0', 'O', '8', 'Q', 'B', 'D', 'G'], ['$', '&', '%', '@', '#', 'W', 'M']];
+    const pickCh = (v, h) => { const a = BANDS[v < .18 ? 0 : v < .35 ? 1 : v < .55 ? 2 : v < .72 ? 3 : v < .88 ? 4 : 5]; return a[h % a.length]; };
+    const mix = (x, a, b) => Math.round(a + (b - a) * x);
+    const COLS = [];
+    for (let L = 0; L < 16; L++) { const x = L / 15, y = Math.pow(x, 1.05); COLS[L] = `rgb(${mix(Math.pow(y, .7), 62, 255)},${mix(Math.pow(y, 1.5), 4, 118)},${mix(Math.pow(y, 1.2), 22, 128)})`; }
+    for (let L = 0; L < 16; L++) { const x = L / 15; COLS[16 + L] = `rgb(${mix(Math.pow(x, 1.6), 8, 120)},${mix(x, 62, 255)},${mix(Math.pow(x, 1.5), 16, 130)})`; }
+    for (let L = 0; L < 8; L++) COLS[32 + L] = `rgb(${120 + L * 15},${130 + L * 14},${145 + L * 13})`;
+    for (let L = 0; L < 8; L++) COLS[40 + L] = `rgb(${150 + L * 14},${110 + L * 15},${50 + L * 20})`;   // золотые блёстки
+    const buckets = COLS.map(() => []);
+    let letters = 0, petalsN = 0;
+
+    const parts = [];
+    function spawnParts(t, b, g) {
+        const o = new Float64Array(2), tmp = new Float64Array(3);
+        stemPt(g, tmp);
+        const top = [tmp[0], tmp[1], tmp[2]];
+        if (g < .995 && Math.random() < .9) { proj(top[0] + rnd(-.1, .1), top[1] + rnd(-.1, .1), top[2], o); parts.push({ x: o[0], y: o[1], vx: rnd(-.2, .2), vy: rnd(-.25, -.05), life: 1, ch: '*', kind: 0 }); }
+        if (b > .15 && parts.length < 160) {
+            for (let k = 0; k < 2; k++) { proj(top[0] + rnd(-.5, .5), top[1] + rnd(-.1, .6), top[2] + rnd(-.3, .3), o); parts.push({ x: o[0], y: o[1], vx: rnd(-.15, .15), vy: rnd(-.2, .02), life: rnd(.6, 1), ch: ['.', '*', '+', "'"][(Math.random() * 4) | 0], kind: 0 }); }
+        }
+        if (b > .75 && Math.random() < .35) { proj(top[0] + rnd(-.35, .35), top[1] + rnd(.1, .4), top[2] + rnd(-.2, .2), o); parts.push({ x: o[0], y: o[1], vx: rnd(-.05, .05), vy: .05, life: 1.6, ch: ['%', '&', '@', '8', 'o', 'e'][(Math.random() * 6) | 0], kind: 1, ph: Math.random() * 6 }); }
+    }
+    function stepParts(dt) {
+        for (const p of parts) {
+            if (p.kind === 0) { p.x += p.vx * dt * 30; p.y += p.vy * dt * 30; p.life -= dt * .55; }
+            else { p.vy = Math.min(.22, p.vy + .12 * dt); p.x += (p.vx + Math.sin(p.life * 4 + p.ph) * .08) * dt * 30; p.y += p.vy * dt * 30; p.life -= dt * .32; }
+        }
+        for (let i = parts.length - 1; i >= 0; i--) if (parts[i].life <= 0 || parts[i].y > rows) parts.splice(i, 1);
+    }
+
+    function compose(t) {
+        buckets.forEach(a => { a.length = 0; }); letters = 0; petalsN = 0;
+        const zAt = (x, y, z0) => (x < 0 || y < 0 || x >= cols || y >= rows || !mat[y * cols + x]) ? z0 : zbuf[y * cols + x], oc = (x, y) => (x < 0 || y < 0 || x >= cols || y >= rows || !mat[y * cols + x]) ? 0 : 1;
+        const txt = cfg.text ? cfg.text.toUpperCase() : '';
+        for (let iy = 0; iy < rows; iy++) for (let ix = 0; ix < cols; ix++) {
+            const idx = iy * cols + ix, m = mat[idx]; if (!m) continue;
+            const z0 = zbuf[idx], tick = Math.floor(t * 1.3 + ((ix * 31 + iy * 17) % 7) / 7);
+            let h = (ix * 73856093) ^ (iy * 19349663) ^ (tick * 83492791); h = (h ^ (h >>> 13)) >>> 0;
+            let v = clamp(bri[idx], 0, 1.05), ch;
+            const gx = oc(ix + 1, iy) - oc(ix - 1, iy), gy = oc(ix, iy + 1) - oc(ix, iy - 1);
+            const zr = zAt(ix + 1, iy, z0), zl = zAt(ix - 1, iy, z0), zd = zAt(ix, iy + 1, z0), zu = zAt(ix, iy - 1, z0), dx = zr - zl, dy = zd - zu;
+            if (Math.max(zr, zl, zd, zu) - z0 > .07) v *= .66;   // тень там, где лепесток прикрыт соседним
+            if ((gx || gy) && h % 100 < 80) {
+                if (gx && !gy) ch = ['|', '|', '[', ']', '{', '}', '('][h % 7]; else if (gy && !gx) ch = ['-', '_', '=', '~'][h % 4]; else ch = gx * gy > 0 ? '/' : '\\';
+                v = Math.min(1.05, v * 1.1);
+            } else if ((Math.abs(dx) > .13 || Math.abs(dy) > .13) && h % 100 < 45) {
+                const ax = Math.abs(dx), ay = Math.abs(dy);
+                ch = ax > ay * 2 ? '|' : ay > ax * 2 ? '-' : dx * dy > 0 ? '/' : '\\'; v = Math.min(1.05, v * 1.15);
+            } else if (txt && m === 1) { ch = txt[(ix + iy * 5) % txt.length]; if (ch === ' ') ch = '.'; }
+            else ch = pickCh(v, h);
+            const L = clamp(Math.floor(Math.pow(v, 1.05) * 15), 0, 15);
+            buckets[(m === 1 ? 0 : 16) + L].push(ix, iy, ch); letters++; if (m === 1) petalsN++;
+        }
+        for (const p of parts) {
+            const ix = p.x | 0, iy = p.y | 0; if (ix < 0 || iy < 0 || ix >= cols || iy >= rows || mat[iy * cols + ix]) continue;
+            const a = clamp(p.life, 0, 1);
+            if (p.kind === 0) buckets[40 + Math.min(7, Math.floor(a * 8))].push(ix, iy, p.ch); else buckets[7 + Math.floor(a * 5)].push(ix, iy, p.ch);
+        }
+        for (const s of stars) {   
+            const tw = (Math.sin(t * s.sp + s.ph) + 1) / 2; if (tw < .5 || mat[s.y * cols + s.x]) continue;
+            const lv = Math.min(7, Math.floor(tw * 8));
+            buckets[32 + Math.max(0, lv - 1)].push(s.x, s.y, tw > .96 ? '+' : '.');
+            if (tw > .96) [[1, 0, '-'], [-1, 0, '-'], [0, 1, '|'], [0, -1, '|']].forEach(([dx, dy, c]) => { const x = s.x + dx, y = s.y + dy; if (x >= 0 && y >= 0 && x < cols && y < rows && !mat[y * cols + x]) buckets[32 + Math.max(0, lv - 4)].push(x, y, c); });
+        }
+    }
+
+    function drawChars(glow) {
+        tcx.fillStyle = '#030305'; tcx.fillRect(0, 0, W, H);
+        tcx.font = `${fontPx}px ${MONO}`; tcx.textAlign = 'center'; tcx.textBaseline = 'middle';
+        buckets.forEach((a, k) => { if (!a.length) return; tcx.fillStyle = COLS[k]; for (let j = 0; j < a.length; j += 3) tcx.fillText(a[j + 2], (a[j] + .5) * cellW, (a[j + 1] + .55) * cellH); });
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; ctx.drawImage(tc, 0, 0, W, H);
+        let src = tc;
+        for (const c of bl) { c.getContext('2d').drawImage(src, 0, 0, c.width, c.height); src = c; }
+        ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .42 * glow; ctx.drawImage(bl[1], 0, 0, W, H); ctx.globalAlpha = .34 * glow; ctx.drawImage(bl[2], 0, 0, W, H);
+        ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    }
+
+    const msgText = cfg.msg || (gift ? 'Эта роза  только для тебя.' : '');
+    function wrap(str, n) { const out = []; let cur = ''; for (const w of str.split(' ')) { if ((cur + ' ' + w).trim().length > n && cur) { out.push(cur); cur = w; } else cur = (cur + ' ' + w).trim(); } if (cur) out.push(cur); return out.slice(0, 3); }
+    const daysTogether = (() => { if (!cfg.since) return null; const d = new Date(cfg.since); if (isNaN(d)) return null; const n = Math.floor((Date.now() - d.getTime()) / 864e5); return n >= 0 ? n : null; })();
+    let fpsShown = 30;
+
+    function drawHud(t, bpm) {
+        const f = Math.max(10, Math.min(13, fontPx * .98)), b = bloomAt(t), deg = swayAt(t) * 180 / Math.PI, top = (parseFloat(getComputedStyle(document.body).paddingTop) || 0) + 26;
+        ctx.font = `${f}px ${MONO}`; ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'right'; ctx.fillStyle = 'rgba(255,110,140,.8)';
+        ctx.fillText('• t ' + t.toFixed(2).padStart(5, '0') + 's', W - 14, top);
+        ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(170,210,180,.62)';
+        const L = ['@' + (cfg.from || 'rose') + ' · 2026', 'bloom ' + (b * 100).toFixed(1) + '%   sway ' + (deg < 0 ? '-' : '') + Math.abs(deg).toFixed(2).padStart(6, '0') + '°', 'letters ' + letters.toLocaleString('en-US') + '   petals ' + petalsN.toLocaleString('en-US')];
+        if (t > 3) L.push('heartbeat ' + Math.round(bpm) + ' bpm');
+        if (daysTogether !== null) L.push('together ' + daysTogether.toLocaleString('en-US') + ' days');
+        if (b > .02) L.push('love ' + Math.min(100, Math.round(b * 100)) + '.0%');
+        L.forEach((s, i) => ctx.fillText(s, 14, top + i * f * 1.35));
+        ctx.fillStyle = 'rgba(150,160,150,.45)'; ctx.fillText('$ python rose.py', 14, H - 12); ctx.textAlign = 'right'; ctx.fillText('running ' + fpsShown + ' fps', W - 14, H - 12);
+    }
+
+    function drawMessage(t) {
+        const T0 = 15.2; if (t < T0 || (!cfg.to && !msgText)) return;
+        const fs = Math.round(clamp(W / 26, 14, 24)), n = Math.max(14, Math.floor((W - 40) / (fs * .6))), lines = [];
+        if (cfg.to) lines.push('> для ' + cfg.to);
+        wrap(msgText, n).forEach(l => lines.push(l));
+        const total = lines.join('').length, shown = Math.floor((t - T0) * 20), lh = fs * 1.5, y0 = H - 118 - (lines.length - 1) * lh;
+        const band = ctx.createLinearGradient(0, y0 - 40, 0, H); band.addColorStop(0, 'rgba(3,3,5,0)'); band.addColorStop(.35, 'rgba(3,3,5,.82)'); band.addColorStop(1, 'rgba(3,3,5,.9)');
+        ctx.fillStyle = band; ctx.fillRect(0, y0 - 40, W, H - y0 + 40);
+        ctx.font = `600 ${fs}px ${MONO}`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.shadowColor = 'rgba(255,90,130,.7)'; ctx.shadowBlur = 14;
+        let left = shown;
+        lines.forEach((l, i) => {
+            const part = l.slice(0, Math.max(0, left)); left -= l.length;
+            ctx.fillStyle = i === 0 && cfg.to ? 'rgba(255,150,175,.95)' : 'rgba(255,236,242,.96)';
+            const cur = (Math.floor(t * 2) % 2 === 0 && part.length < l.length && part.length > 0) || (shown >= total && i === lines.length - 1 && Math.floor(t * 2) % 2 === 0) ? '▌' : '';
+            ctx.fillText(part + cur, W / 2, y0 + i * lh);
+        });
+        ctx.shadowBlur = 0;
+    }
+
+    let ac = null, master = null, bus = null, soundOn = false, lastChime = -1, nextNote = 0, noteIdx = 0;
+    const CHORDS = [[110, 130.8, 164.8], [87.3, 110, 130.8], [130.8, 164.8, 196], [98, 123.5, 146.8]], PENTA = [523.25, 587.33, 659.25, 783.99, 880, 1046.5];
+    let padOsc = [];
+    function audioInit() {
+        if (ac) return;
+        const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+        ac = new AC(); master = ac.createGain(); master.gain.value = 0; master.connect(ac.destination);
+        const len = ac.sampleRate * 2.8, buf = ac.createBuffer(2, len, ac.sampleRate);
+        for (let c = 0; c < 2; c++) { const d = buf.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
+        const conv = ac.createConvolver(); conv.buffer = buf; const wet = ac.createGain(); wet.gain.value = .55; conv.connect(wet); wet.connect(master);
+        bus = ac.createGain(); bus.connect(master); bus.connect(conv);
+        const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900; lp.connect(bus);
+        padOsc = [0, 1, 2, 3, 4, 5].map((i) => { const o = ac.createOscillator(), g = ac.createGain(); o.type = i < 3 ? 'triangle' : 'sine'; o.frequency.value = CHORDS[0][i % 3] * (i < 3 ? 1 : 2); o.detune.value = (i % 2 ? 6 : -6); g.gain.value = i < 3 ? .05 : .018; o.connect(g); g.connect(lp); o.start(); return o; });
+    }
+    function bell(freq, vol, when) {
+        const o = ac.createOscillator(), o2 = ac.createOscillator(), g = ac.createGain(); o.type = 'sine'; o2.type = 'sine'; o.frequency.value = freq; o2.frequency.value = freq * 2.01;
+        const g2 = ac.createGain(); g2.gain.value = .3; o2.connect(g2); g2.connect(g); o.connect(g); g.connect(bus);
+        g.gain.setValueAtTime(0, when); g.gain.linearRampToValueAtTime(vol, when + .01); g.gain.exponentialRampToValueAtTime(.0008, when + 1.6);
+        o.start(when); o2.start(when); o.stop(when + 1.7); o2.stop(when + 1.7);
+    }
+    function audioTick(t) {
+        if (!ac || !soundOn) return;
+        const now = ac.currentTime, ci = Math.floor(t / 6) % CHORDS.length;
+        padOsc.forEach((o, i) => o.frequency.setTargetAtTime(CHORDS[ci][i % 3] * (i < 3 ? 1 : 2), now, .8));
+        while (nextNote < now + .25) {
+            if (nextNote < now) nextNote = now;
+            if (t > 2.5 && noteIdx % 2 === 0) bell(PENTA[(Math.random() * PENTA.length) | 0] * (Math.random() < .2 ? .5 : 1), t > BLOOM0 ? .07 : .045, nextNote);
+            nextNote += .5; noteIdx++;
+        }
+        if (t >= BLOOM0 && lastChime !== Math.floor(now / 1000) && !audioTick.done) { audioTick.done = true;[0, 2, 3, 5, 3, 5].forEach((k, i) => bell(PENTA[k] * (i > 3 ? 2 : 1), .09, now + i * .16)); }
+        if (t < BLOOM0) audioTick.done = false;
+    }
+    function setSound(on) {
+        soundOn = on; $('snd').textContent = on ? '🔊' : '🔇';
+        if (on) { audioInit(); if (ac) { if (ac.state === 'suspended') ac.resume(); master.gain.cancelScheduledValues(ac.currentTime); master.gain.linearRampToValueAtTime(.9, ac.currentTime + 2.5); } }
+        else if (ac) { master.gain.cancelScheduledValues(ac.currentTime); master.gain.linearRampToValueAtTime(0, ac.currentTime + .4); }
+    }
+
+    let t0 = performance.now(), lastDraw = 0, started = !gift, lastFrame = performance.now();
+    const now = () => FIXT !== null ? FIXT : (performance.now() - t0) / 1000;
+    let fpsN = 0, fpsT = performance.now(), lastInput = 0;
+    function frame(ts) {
+        requestAnimationFrame(frame);
+        if (ts - lastDraw < 33) return; lastDraw = ts;
+        const c0 = performance.now(), dt = Math.min(.1, (c0 - lastFrame) / 1000); lastFrame = c0;
+        let t = started ? now() : 0; if (FIXT === null && t > LOOP) { t0 = performance.now(); t = 0; parts.length = 0; }
+        const b = bloomAt(t), bpm = 62 + 56 * b + 3 * Math.sin(t * 2.3), beat = Math.pow(Math.max(0, Math.sin(t * bpm / 60 * 6.283)), 10), pulse = 1 + .03 * beat * (b > .02 ? 1 : 0);
+        SC = scale * (1 + .12 * smooth((t - 4) / 14));
+        setCamera(t); renderRose(t, pulse);
+        const g = 1 - Math.pow(1 - clamp(t / 3.4, 0, 1), 3);
+        if (started && t > 0.5) spawnParts(t, b, g); stepParts(dt);
+        compose(t); drawChars(1 + .5 * beat); drawHud(t, bpm); drawMessage(t); audioTick(t);
+        fpsN++; if (c0 - fpsT > 1000) { fpsShown = Math.min(30, Math.round(fpsN * 1000 / (c0 - fpsT))); fpsN = 0; fpsT = c0; }
+        const cost = performance.now() - c0; if (cost > 30) Q = Math.max(.35, Q * .92); else if (cost < 16) Q = Math.min(1, Q * 1.02);
+        if (t - lastInput > 5 && FIXT === null && started) document.body.classList.add('calm');
+    }
+    const wake = () => { lastInput = now(); document.body.classList.remove('calm'); };
+    function say(msg, ms = 2600) { toast.textContent = msg; setTimeout(() => { if (toast.textContent === msg) toast.textContent = ''; }, ms); }
+
+    $('again').addEventListener('click', () => { t0 = performance.now(); parts.length = 0; wake(); });
+    $('snd').addEventListener('click', () => { setSound(!soundOn); wake(); });
+    $('rec').addEventListener('click', () => {
+        if (!cv.captureStream || !window.MediaRecorder) { say('Запись в этом браузере не поддерживается'); return; }
+        const rec = new MediaRecorder(cv.captureStream(30), { mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm' }), chunks = [];
+        rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+        rec.onstop = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(chunks, { type: 'video/webm' })); a.download = 'rose.webm'; a.click(); say('Видео сохранено'); };
+        t0 = performance.now(); parts.length = 0; rec.start(); say('Запись 30 секунд…', 30000); wake(); setTimeout(() => rec.stop(), 30000);
+    });
+
+    const make = $('make');
+    const link = () => {
+        const p = new URLSearchParams(); const v = (id) => $(id).value.trim();
+        if (v('f-to')) p.set('to', v('f-to')); if (v('f-from')) p.set('from', v('f-from')); if (v('f-msg')) p.set('msg', v('f-msg')); if (v('f-since')) p.set('since', v('f-since')); if (v('f-text')) p.set('text', v('f-text'));
+        return window.location.origin + window.location.pathname + (p.toString() ? '?' + p.toString() : '');
+    };
+    $('mk').addEventListener('click', () => { make.classList.add('on'); $('f-to').value = cfg.to; $('f-from').value = cfg.from; $('f-msg').value = cfg.msg; $('f-since').value = cfg.since; $('f-text').value = cfg.text; $('f-link').value = ''; });
+    $('f-close').addEventListener('click', () => make.classList.remove('on'));
+    $('f-prev').addEventListener('click', () => {
+        cfg.to = $('f-to').value.trim(); cfg.from = $('f-from').value.trim(); cfg.msg = $('f-msg').value.trim(); cfg.since = $('f-since').value; cfg.text = $('f-text').value.trim();
+        make.classList.remove('on'); t0 = performance.now() - 14000; parts.length = 0; location.hash = ''; wake();
+    });
+    $('f-send').addEventListener('click', async () => {
+        const url = link(); $('f-link').value = url;
+        const to = $('f-to').value.trim();
+        try {
+            if (navigator.share) { await navigator.share({ title: 'Роза для тебя', text: to ? to + ', это для тебя 🌹' : 'Это для тебя 🌹', url }); return; }
+        } catch (e) {}
+        try { await navigator.clipboard.writeText(url); say('Ссылка скопирована: отправь её ей'); } catch (e) { $('f-link').select(); say('Скопируйте ссылку вручную'); }
+    });
+
+    if (gift) {
+        $('open').classList.add('on'); $('open-for').textContent = cfg.to ? 'Для ' + cfg.to + ' 🤍' : 'Для тебя 🤍';
+        $('open').addEventListener('pointerdown', () => { $('open').classList.add('out'); started = true; t0 = performance.now(); setSound(true); wake(); setTimeout(() => $('open').classList.remove('on'), 1300); }, { once: true });
+    } else setTimeout(() => say('Нажми 🔇, чтобы включить музыку', 4000), 1500);
+    window.addEventListener('pointerdown', (e) => { if (!e.target.closest('button, #make, #open')) wake(); });
+    let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (document.activeElement && document.activeElement.tagName === 'INPUT') return; resize(); }, 200); });
+    resize(); SC = scale; requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
